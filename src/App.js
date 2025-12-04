@@ -688,7 +688,7 @@ const AboutPage = ({ profile, lang, onClose }) => {
   );
 };
 
-// ImmersiveLightbox: 优化版 (解决手机卡顿 + 多语言标题)
+// ImmersiveLightbox: 优化版 (解决手机卡顿 + 按钮防误触 + 区域避让)
 const ImmersiveLightbox = ({
   initialIndex,
   images,
@@ -769,6 +769,9 @@ const ImmersiveLightbox = ({
     }
   };
 
+  // 阻止按钮点击冒泡，防止触发滑动逻辑
+  const preventPropagation = (e) => e.stopPropagation();
+
   if (!currentImage) return null;
 
   const isHighRes = currentImage.width > 1920 && currentImage.height > 1080;
@@ -790,11 +793,13 @@ const ImmersiveLightbox = ({
     >
       <button
         onClick={onClose}
+        onPointerDown={preventPropagation}
         className="absolute top-6 right-6 z-[101] text-neutral-500 hover:text-white transition-colors p-4"
       >
         <X className="w-6 h-6" />
       </button>
 
+      {/* PC 端箭头 */}
       <div className="hidden md:flex absolute inset-y-0 left-4 z-20 items-center justify-center pointer-events-none">
         <ChevronLeft
           className="text-white/50 hover:text-white transition-colors"
@@ -811,15 +816,16 @@ const ImmersiveLightbox = ({
         />
       </div>
 
+      {/* 隐形点击区域 - 避让顶部关闭按钮 (top-24) */}
       <div
-        className="absolute inset-y-0 left-0 w-1/2 z-10 cursor-pointer"
+        className="absolute top-24 bottom-0 left-0 w-1/2 z-10 cursor-pointer"
         onClick={(e) => {
           e.stopPropagation();
           changeImage("prev");
         }}
       />
       <div
-        className="absolute inset-y-0 right-0 w-1/2 z-10 cursor-pointer"
+        className="absolute top-24 bottom-0 right-0 w-1/2 z-10 cursor-pointer"
         onClick={(e) => {
           e.stopPropagation();
           changeImage("next");
@@ -850,12 +856,14 @@ const ImmersiveLightbox = ({
         </div>
 
         <div className="flex items-center gap-4 pointer-events-auto">
+          {/* 手机端翻页按钮 */}
           <div className="md:hidden flex items-center gap-4">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 changeImage("prev");
               }}
+              onPointerDown={preventPropagation}
               className="text-white/50 hover:text-white p-2"
             >
               <ChevronLeft size={20} strokeWidth={1} />
@@ -865,6 +873,7 @@ const ImmersiveLightbox = ({
                 e.stopPropagation();
                 changeImage("next");
               }}
+              onPointerDown={preventPropagation}
               className="text-white/50 hover:text-white p-2"
             >
               <ChevronRight size={20} strokeWidth={1} />
@@ -1025,7 +1034,7 @@ const WorksPage = ({ photos, profile, ui, onImageClick, lang }) => {
             key={year}
             className="mb-16 md:mb-12 flex flex-col md:flex-row gap-4 md:gap-8"
           >
-            {/* CRITICAL FIX: 彻底移除了 sticky 效果，现在年份在所有设备上都会随页面滚动 */}
+            {/* CRITICAL FIX: 彻底移除了 sticky，年份自然滚动 */}
             <div className="md:w-48 flex-shrink-0 relative h-fit pointer-events-none z-10">
               <span className="text-4xl md:text-2xl font-serif font-thin text-white/30 md:text-white/50 tracking-widest block leading-none md:-ml-2 transition-all font-serif">
                 {year}
@@ -1213,7 +1222,6 @@ const PhotosManager = ({
     }
   };
 
-  // Open Modal for Editing
   const openEditProject = (project, year) => {
     const projectPhotos = photos.filter(
       (p) => p.year === year && p.project === project
@@ -1239,7 +1247,7 @@ const PhotosManager = ({
 
     const updates = toUpdate.map((p) => ({
       id: p.id,
-      project: newData.en, // Update Project ID/Key
+      project: newData.en,
       projectTitles: newData,
     }));
 
@@ -2385,7 +2393,7 @@ const AppContent = () => {
         }
         return prev;
       });
-    }, 2500);
+    }, 8000); // Extended timeout
 
     const initAuth = async () => {
       if (!auth) return;
@@ -2412,14 +2420,13 @@ const AppContent = () => {
   }, []);
 
   useEffect(() => {
-    if (!user || !db) return;
+    if (!db) return; // Removed strict user check to allow public read even if auth fails
 
     const unsubPhotos = onSnapshot(
       getPublicCollection("photos"),
       (snap) => {
         const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
-        // [Critical Fix] 统一排序逻辑，确保前端与后台一致
         data.sort((a, b) => {
           const orderA = typeof a.order === "number" ? a.order : 9999;
           const orderB = typeof b.order === "number" ? b.order : 9999;
@@ -2431,6 +2438,8 @@ const AppContent = () => {
       },
       (err) => {
         console.error("Data Load Error", err);
+        // If permission denied (e.g. auth failed), we still stop loading
+        // The UI will show empty state or default config
         setIsOffline(true);
         setIsLoading(false);
       }
@@ -2447,7 +2456,7 @@ const AppContent = () => {
       unsubPhotos();
       unsubSettings();
     };
-  }, [user]);
+  }, [user]); // Still re-run on user change for admin rights
 
   const handleLoginAttempt = (pass) => {
     if (pass === APP_CONFIG.adminPasscode) {
