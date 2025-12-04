@@ -270,7 +270,7 @@ const DEFAULT_SETTINGS = {
 
 // --- 2. 基础组件 ---
 
-// [FIXED] MetaUpdater 现在也会更新 Favicon
+// MetaUpdater: 更新标题和 Favicon
 const MetaUpdater = ({ profile }) => {
   useEffect(() => {
     if (profile?.siteTitle) document.title = profile.siteTitle;
@@ -415,12 +415,12 @@ const GlobalNav = ({
           className="cursor-pointer flex items-center gap-2 hover:opacity-80 transition-opacity"
           onClick={() => onNavClick("home")}
         >
-          {/* [FIXED] LOGO 尺寸大幅缩小至 h-4 md:h-5 (约为原来的30%) */}
+          {/* [FIXED] LOGO 尺寸进一步缩小至 h-3 md:h-3.5 (约12px-14px) */}
           {profile.logoUrl ? (
             <img
               src={profile.logoUrl}
               alt="Logo"
-              className="h-4 md:h-5 w-auto object-contain"
+              className="h-3 md:h-3.5 w-auto object-contain"
             />
           ) : (
             <>
@@ -1043,7 +1043,6 @@ const WorksPage = ({ photos, profile, ui, onImageClick, lang }) => {
             key={year}
             className="mb-16 md:mb-12 flex flex-col md:flex-row gap-4 md:gap-8"
           >
-            {/* CRITICAL FIX: 彻底移除了 sticky，年份自然滚动 */}
             <div className="md:w-48 flex-shrink-0 relative h-fit pointer-events-none z-10">
               <span className="text-4xl md:text-2xl font-serif font-thin text-white/30 md:text-white/50 tracking-widest block leading-none md:-ml-2 transition-all font-serif">
                 {year}
