@@ -202,8 +202,7 @@ const injectStyles = () => {
     :root { --font-heading: 'Cinzel', serif; --font-body: 'Inter', sans-serif; }
     body { font-family: var(--font-body); background-color: #0a0a0a; margin: 0; padding: 0; overflow-x: hidden; }
     h1, h2, h3, .font-serif { font-family: var(--font-heading); }
-    /* 修复 Z-Index 问题：背景噪音放到底层 */
-    .noise-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; opacity: 0.04; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); }
+    .noise-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; opacity: 0.04; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); }
     .animate-fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -689,7 +688,7 @@ const AboutPage = ({ profile, lang, onClose }) => {
   );
 };
 
-// ImmersiveLightbox: 优化版 (解决手机卡顿 + 按钮防误触 + 区域避让)
+// ImmersiveLightbox: 优化版 (解决手机卡顿 + 多语言标题)
 const ImmersiveLightbox = ({
   initialIndex,
   images,
@@ -763,14 +762,12 @@ const ImmersiveLightbox = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentIndex]);
 
+  // 点击背景关闭
   const handleBackgroundClick = (e) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
-
-  // 阻止按钮点击冒泡，防止触发滑动逻辑
-  const preventPropagation = (e) => e.stopPropagation();
 
   if (!currentImage) return null;
 
@@ -793,13 +790,11 @@ const ImmersiveLightbox = ({
     >
       <button
         onClick={onClose}
-        onPointerDown={preventPropagation}
         className="absolute top-6 right-6 z-[101] text-neutral-500 hover:text-white transition-colors p-4"
       >
         <X className="w-6 h-6" />
       </button>
 
-      {/* PC 端箭头 */}
       <div className="hidden md:flex absolute inset-y-0 left-4 z-20 items-center justify-center pointer-events-none">
         <ChevronLeft
           className="text-white/50 hover:text-white transition-colors"
@@ -816,16 +811,15 @@ const ImmersiveLightbox = ({
         />
       </div>
 
-      {/* 隐形点击区域 - 避让顶部关闭按钮 (top-24) */}
       <div
-        className="absolute top-24 bottom-0 left-0 w-1/2 z-10 cursor-pointer"
+        className="absolute inset-y-0 left-0 w-1/2 z-10 cursor-pointer"
         onClick={(e) => {
           e.stopPropagation();
           changeImage("prev");
         }}
       />
       <div
-        className="absolute top-24 bottom-0 right-0 w-1/2 z-10 cursor-pointer"
+        className="absolute inset-y-0 right-0 w-1/2 z-10 cursor-pointer"
         onClick={(e) => {
           e.stopPropagation();
           changeImage("next");
@@ -856,14 +850,12 @@ const ImmersiveLightbox = ({
         </div>
 
         <div className="flex items-center gap-4 pointer-events-auto">
-          {/* 手机端翻页按钮 */}
           <div className="md:hidden flex items-center gap-4">
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 changeImage("prev");
               }}
-              onPointerDown={preventPropagation}
               className="text-white/50 hover:text-white p-2"
             >
               <ChevronLeft size={20} strokeWidth={1} />
@@ -873,7 +865,6 @@ const ImmersiveLightbox = ({
                 e.stopPropagation();
                 changeImage("next");
               }}
-              onPointerDown={preventPropagation}
               className="text-white/50 hover:text-white p-2"
             >
               <ChevronRight size={20} strokeWidth={1} />
@@ -1034,7 +1025,7 @@ const WorksPage = ({ photos, profile, ui, onImageClick, lang }) => {
             key={year}
             className="mb-16 md:mb-12 flex flex-col md:flex-row gap-4 md:gap-8"
           >
-            {/* CRITICAL FIX: 彻底移除了 sticky，年份自然滚动 */}
+            {/* CRITICAL FIX: 彻底移除了 sticky 效果，现在年份在所有设备上都会随页面滚动 */}
             <div className="md:w-48 flex-shrink-0 relative h-fit pointer-events-none z-10">
               <span className="text-4xl md:text-2xl font-serif font-thin text-white/30 md:text-white/50 tracking-widest block leading-none md:-ml-2 transition-all font-serif">
                 {year}
@@ -1222,6 +1213,7 @@ const PhotosManager = ({
     }
   };
 
+  // Open Modal for Editing
   const openEditProject = (project, year) => {
     const projectPhotos = photos.filter(
       (p) => p.year === year && p.project === project
@@ -1247,7 +1239,7 @@ const PhotosManager = ({
 
     const updates = toUpdate.map((p) => ({
       id: p.id,
-      project: newData.en,
+      project: newData.en, // Update Project ID/Key
       projectTitles: newData,
     }));
 
@@ -2254,7 +2246,6 @@ const MainView = ({ photos, settings, onLoginClick, isOffline }) => {
     <div className="bg-neutral-950 text-neutral-200 font-sans selection:bg-white selection:text-black relative">
       <MetaUpdater profile={settings.profile} />
       <div className="noise-bg"></div>
-      {/* Z-Index Fix: GlobalNav (50) > MainView (10/20) > HeroSlideshow (0) > Noise (0) */}
       <button
         onClick={onLoginClick}
         className="fixed bottom-6 right-6 z-50 bg-neutral-900/50 hover:bg-white hover:text-black text-white/50 p-3 rounded-full transition-all duration-500 border border-white/10 hover:border-white shadow-lg backdrop-blur-md"
@@ -2272,14 +2263,7 @@ const MainView = ({ photos, settings, onLoginClick, isOffline }) => {
       />
       {view === "home" && !showAbout && (
         <div className="relative h-[100dvh] w-full overflow-hidden">
-          {/* Z-Index Fix: HeroSlideshow is base layer */}
-          <HeroSlideshow
-            slides={slides}
-            onIndexChange={setCurrentSlideIndex}
-            onLinkClick={handleLinkNavigation}
-          />
-
-          {/* Z-Index Fix: Slogan Text is layer 10 (Clickable: pointer-events-none on container, auto on text if needed) */}
+          {/* Slogan & Title Overlay */}
           {(profile.showSlogan || profile.showSlideTitle) && (
             <div className="absolute inset-0 pointer-events-none z-10">
               {slides.map((slide, index) => {
@@ -2317,6 +2301,11 @@ const MainView = ({ photos, settings, onLoginClick, isOffline }) => {
               })}
             </div>
           )}
+          <HeroSlideshow
+            slides={slides}
+            onIndexChange={setCurrentSlideIndex}
+            onLinkClick={handleLinkNavigation}
+          />
         </div>
       )}
       {view === "works" && !showAbout && (
@@ -2391,12 +2380,12 @@ const AppContent = () => {
         if (prev) {
           console.warn("Loading timed out, switching to offline mode");
           setIsOffline(true);
-          // Even if timed out, keep existing data if any
+          setPhotos([]);
           return false;
         }
         return prev;
       });
-    }, 8000); // Extended timeout
+    }, 2500);
 
     const initAuth = async () => {
       if (!auth) return;
@@ -2411,7 +2400,6 @@ const AppContent = () => {
         }
       } catch (e) {
         console.error("Auth Failed", e);
-        // Don't block app if auth fails (e.g. domain restriction)
       }
     };
     initAuth();
@@ -2424,15 +2412,14 @@ const AppContent = () => {
   }, []);
 
   useEffect(() => {
-    // Removed strict user check to allow loading public data even if auth is pending/failed
-    // assuming Firestore rules allow public read
-    if (!db) return;
+    if (!user || !db) return;
 
     const unsubPhotos = onSnapshot(
       getPublicCollection("photos"),
       (snap) => {
         const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
+        // [Critical Fix] 统一排序逻辑，确保前端与后台一致
         data.sort((a, b) => {
           const orderA = typeof a.order === "number" ? a.order : 9999;
           const orderB = typeof b.order === "number" ? b.order : 9999;
@@ -2444,8 +2431,6 @@ const AppContent = () => {
       },
       (err) => {
         console.error("Data Load Error", err);
-        // If permission denied (e.g. auth failed), we still stop loading
-        // The UI will show empty state or default config
         setIsOffline(true);
         setIsLoading(false);
       }
@@ -2462,7 +2447,7 @@ const AppContent = () => {
       unsubPhotos();
       unsubSettings();
     };
-  }, [user]); // Re-subscribe if user status changes (e.g. becomes admin)
+  }, [user]);
 
   const handleLoginAttempt = (pass) => {
     if (pass === APP_CONFIG.adminPasscode) {
