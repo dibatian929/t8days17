@@ -202,7 +202,7 @@ const injectStyles = () => {
     :root { --font-heading: 'Cinzel', serif; --font-body: 'Inter', sans-serif; }
     body { font-family: var(--font-body); background-color: #0a0a0a; margin: 0; padding: 0; overflow-x: hidden; }
     h1, h2, h3, .font-serif { font-family: var(--font-heading); }
-    .noise-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; opacity: 0.04; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); }
+    .noise-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; opacity: 0.04; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); }
     .animate-fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -314,7 +314,7 @@ const LoginModal = ({ isOpen, onClose, onLogin }) => {
   );
 };
 
-// [NEW] 项目信息编辑弹窗
+// 项目信息编辑弹窗
 const ProjectEditModal = ({ isOpen, onClose, initialData, onSave }) => {
   const [formData, setFormData] = useState({ en: "", cn: "", th: "" });
 
@@ -399,7 +399,7 @@ const GlobalNav = ({
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-50 py-6 md:py-8 px-6 md:px-12 flex justify-between items-center transition-all duration-500 bg-gradient-to-b from-neutral-950/80 to-transparent backdrop-blur-[2px]">
+      <nav className="fixed top-0 left-0 right-0 z-[60] py-6 md:py-8 px-6 md:px-12 flex justify-between items-center transition-all duration-500 bg-gradient-to-b from-neutral-950/80 to-transparent backdrop-blur-[2px] pointer-events-auto">
         <div
           className="cursor-pointer flex items-center gap-2 hover:opacity-80 transition-opacity"
           onClick={() => onNavClick("home")}
@@ -471,7 +471,7 @@ const GlobalNav = ({
           </div>
         </div>
 
-        <div className="md:hidden flex items-center gap-4">
+        <div className="md:hidden flex items-center gap-4 z-[61]">
           <button
             onClick={() =>
               setLang(lang === "en" ? "cn" : lang === "cn" ? "th" : "en")
@@ -481,7 +481,7 @@ const GlobalNav = ({
             {lang}
           </button>
           <button
-            className="text-white"
+            className="text-white p-2"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X /> : <Menu />}
@@ -490,7 +490,7 @@ const GlobalNav = ({
       </nav>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center animate-fade-in-up">
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center animate-fade-in-up">
           <div className="flex flex-col gap-12 text-4xl font-thin text-white tracking-widest items-center font-serif">
             <button
               onClick={() => onNavClick("works")}
@@ -549,7 +549,7 @@ const HeroSlideshow = ({ slides, onIndexChange, onLinkClick }) => {
   };
 
   return (
-    <div className="absolute inset-0 w-full h-full bg-neutral-900 overflow-hidden">
+    <div className="absolute inset-0 w-full h-full bg-neutral-900 overflow-hidden z-0">
       {slides.map((slide, index) => {
         const isActive = index === currentIndex;
         return (
@@ -597,7 +597,7 @@ const AboutPage = ({ profile, lang, onClose }) => {
     ...(profile.content?.[lang] || {}),
   };
   return (
-    <div className="fixed inset-0 z-30 bg-neutral-950 overflow-y-auto animate-fade-in-up no-scrollbar">
+    <div className="fixed inset-0 z-50 bg-neutral-950 overflow-y-auto animate-fade-in-up no-scrollbar">
       <div className="min-h-screen flex flex-col md:flex-row">
         <div className="w-full md:w-1/2 h-[50vh] md:h-screen relative">
           <img
@@ -688,7 +688,7 @@ const AboutPage = ({ profile, lang, onClose }) => {
   );
 };
 
-// ImmersiveLightbox: 优化版 (解决手机卡顿 + 按钮防误触 + 区域避让)
+// ImmersiveLightbox: 手机端优化版 (修复按钮失效和卡顿)
 const ImmersiveLightbox = ({
   initialIndex,
   images,
@@ -762,23 +762,19 @@ const ImmersiveLightbox = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentIndex]);
 
-  // 点击背景关闭
   const handleBackgroundClick = (e) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
-  // 阻止按钮点击冒泡，防止触发滑动逻辑
-  const preventPropagation = (e) => e.stopPropagation();
+  const stopProp = (e) => e.stopPropagation();
 
   if (!currentImage) return null;
 
   const isHighRes = currentImage.width > 1920 && currentImage.height > 1080;
   const imgClassName = isHighRes ? "h-[75vh] w-auto" : "max-h-[75vh] w-auto";
   const placeholderSrc = currentImage.thumbnailUrl || currentImage.url;
-
-  // Resolve Multi-language Title
   const displayTitle =
     currentImage.projectTitles?.[lang] || currentImage.project;
 
@@ -791,15 +787,17 @@ const ImmersiveLightbox = ({
       onClick={handleBackgroundClick}
       style={{ touchAction: "none" }}
     >
+      {/* 强制置顶的关闭按钮 */}
       <button
-        onClick={onClose}
-        onPointerDown={preventPropagation}
-        className="absolute top-6 right-6 z-[101] text-neutral-500 hover:text-white transition-colors p-4"
+        onClick={(e) => {
+          stopProp(e);
+          onClose();
+        }}
+        className="absolute top-6 right-6 z-[110] text-neutral-500 hover:text-white transition-colors p-4"
       >
         <X className="w-6 h-6" />
       </button>
 
-      {/* PC 端箭头 */}
       <div className="hidden md:flex absolute inset-y-0 left-4 z-20 items-center justify-center pointer-events-none">
         <ChevronLeft
           className="text-white/50 hover:text-white transition-colors"
@@ -807,7 +805,6 @@ const ImmersiveLightbox = ({
           strokeWidth={0.5}
         />
       </div>
-
       <div className="hidden md:flex absolute inset-y-0 right-4 z-20 items-center justify-center pointer-events-none">
         <ChevronRight
           className="text-white/50 hover:text-white transition-colors"
@@ -816,18 +813,17 @@ const ImmersiveLightbox = ({
         />
       </div>
 
-      {/* 隐形点击区域 - 避让顶部关闭按钮 (top-24) */}
       <div
-        className="absolute top-24 bottom-0 left-0 w-1/2 z-10 cursor-pointer"
+        className="absolute inset-y-0 left-0 w-1/2 z-10 cursor-pointer"
         onClick={(e) => {
-          e.stopPropagation();
+          stopProp(e);
           changeImage("prev");
         }}
       />
       <div
-        className="absolute top-24 bottom-0 right-0 w-1/2 z-10 cursor-pointer"
+        className="absolute inset-y-0 right-0 w-1/2 z-10 cursor-pointer"
         onClick={(e) => {
-          e.stopPropagation();
+          stopProp(e);
           changeImage("next");
         }}
       />
@@ -855,25 +851,22 @@ const ImmersiveLightbox = ({
           {currentImage.year} — {displayTitle}
         </div>
 
-        <div className="flex items-center gap-4 pointer-events-auto">
-          {/* 手机端翻页按钮 */}
+        <div className="flex items-center gap-4 pointer-events-auto z-[110]">
           <div className="md:hidden flex items-center gap-4">
             <button
               onClick={(e) => {
-                e.stopPropagation();
+                stopProp(e);
                 changeImage("prev");
               }}
-              onPointerDown={preventPropagation}
               className="text-white/50 hover:text-white p-2"
             >
               <ChevronLeft size={20} strokeWidth={1} />
             </button>
             <button
               onClick={(e) => {
-                e.stopPropagation();
+                stopProp(e);
                 changeImage("next");
               }}
-              onPointerDown={preventPropagation}
               className="text-white/50 hover:text-white p-2"
             >
               <ChevronRight size={20} strokeWidth={1} />
@@ -1034,7 +1027,6 @@ const WorksPage = ({ photos, profile, ui, onImageClick, lang }) => {
             key={year}
             className="mb-16 md:mb-12 flex flex-col md:flex-row gap-4 md:gap-8"
           >
-            {/* CRITICAL FIX: 彻底移除了 sticky，年份自然滚动 */}
             <div className="md:w-48 flex-shrink-0 relative h-fit pointer-events-none z-10">
               <span className="text-4xl md:text-2xl font-serif font-thin text-white/30 md:text-white/50 tracking-widest block leading-none md:-ml-2 transition-all font-serif">
                 {year}
@@ -1090,14 +1082,12 @@ const PhotosManager = ({
     new Date().getFullYear().toString()
   );
 
-  // Multi-language Inputs
   const [uploadProjectEn, setUploadProjectEn] = useState("");
   const [uploadProjectCn, setUploadProjectCn] = useState("");
   const [uploadProjectTh, setUploadProjectTh] = useState("");
 
   const [localPhotos, setLocalPhotos] = useState(photos);
   const [dragged, setDragged] = useState(null);
-  // State for Edit Modal
   const [editingProjectData, setEditingProjectData] = useState(null);
 
   useEffect(() => {
@@ -1309,7 +1299,6 @@ const PhotosManager = ({
 
   return (
     <div className="space-y-12">
-      {/* Upload Area */}
       <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-xl sticky top-0 z-20 shadow-xl">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
           <div className="md:col-span-1">
@@ -1365,7 +1354,6 @@ const PhotosManager = ({
         </button>
       </div>
 
-      {/* Projects List */}
       <div className="space-y-8 pb-24">
         <div className="flex justify-end">
           <button
@@ -1463,7 +1451,6 @@ const PhotosManager = ({
           ))}
       </div>
 
-      {/* Project Edit Modal */}
       <ProjectEditModal
         isOpen={!!editingProjectData}
         onClose={() => setEditingProjectData(null)}
@@ -1571,7 +1558,6 @@ const HomeSettings = ({ settings, onUpdate }) => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
-      {/* Slogan Settings */}
       <div className="bg-neutral-900 p-6 rounded-xl border border-neutral-800 space-y-6">
         <div className="flex justify-between items-center border-b border-neutral-800 pb-4">
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -1580,7 +1566,6 @@ const HomeSettings = ({ settings, onUpdate }) => {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-xs text-neutral-400">Show Slogan?</span>
-              {/* CSS Toggle */}
               <button
                 onClick={() => handleChange("showSlogan", !formData.showSlogan)}
                 className={`w-12 h-6 rounded-full p-1 transition-colors flex items-center ${
@@ -1661,7 +1646,6 @@ const HomeSettings = ({ settings, onUpdate }) => {
         </div>
       </div>
 
-      {/* Hero Slides Settings */}
       <div className="bg-neutral-900 p-6 rounded-xl border border-neutral-800 space-y-6">
         <h3 className="text-lg font-bold text-white flex items-center gap-2">
           <ImageIcon className="w-5 h-5" /> Hero Slides
@@ -2388,12 +2372,12 @@ const AppContent = () => {
         if (prev) {
           console.warn("Loading timed out, switching to offline mode");
           setIsOffline(true);
-          setPhotos([]);
+          // Even if timed out, keep existing data if any
           return false;
         }
         return prev;
       });
-    }, 8000); // Extended timeout
+    }, 8000); // Extended timeout for mobile
 
     const initAuth = async () => {
       if (!auth) return;
@@ -2408,6 +2392,7 @@ const AppContent = () => {
         }
       } catch (e) {
         console.error("Auth Failed", e);
+        // Don't block app if auth fails (e.g. domain restriction)
       }
     };
     initAuth();
@@ -2489,7 +2474,12 @@ const AppContent = () => {
     }
   };
 
-  if (isLoading)
+  // 移除了全屏Loading阻断，改为仅在数据未加载且未超时时显示，或者让界面直接渲染（数据为空时显示空白或骨架屏），
+  // 这里为了解决“按钮点不动”问题，即使isLoading为true，也允许渲染 UI 框架，只是内容可能为空。
+  // 但为了视觉一致性，我们保留 Loading，但确保它不会永久卡死（timeout已处理）。
+  // 关键修复：如果 isOffline 为 true，或者 photos 已经有数据，就停止 loading。
+
+  if (isLoading && photos.length === 0 && !isOffline)
     return (
       <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center text-neutral-500">
         <Loader2 className="w-8 h-8 animate-spin mb-4 text-white" />
