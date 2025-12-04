@@ -270,9 +270,20 @@ const DEFAULT_SETTINGS = {
 
 // --- 2. 基础组件 ---
 
+// [FIXED] MetaUpdater 现在也会更新 Favicon
 const MetaUpdater = ({ profile }) => {
   useEffect(() => {
     if (profile?.siteTitle) document.title = profile.siteTitle;
+
+    if (profile?.faviconUrl) {
+      let link = document.querySelector("link[rel~='icon']");
+      if (!link) {
+        link = document.createElement("link");
+        link.rel = "icon";
+        document.head.appendChild(link);
+      }
+      link.href = profile.faviconUrl;
+    }
   }, [profile]);
   return null;
 };
@@ -399,16 +410,17 @@ const GlobalNav = ({
 
   return (
     <>
-      <nav className="fixed top-0 left-0 right-0 z-[60] py-6 md:py-8 px-6 md:px-12 flex justify-between items-center transition-all duration-500 bg-gradient-to-b from-neutral-950/80 to-transparent backdrop-blur-[2px] pointer-events-auto">
+      <nav className="fixed top-0 left-0 right-0 z-50 py-6 md:py-8 px-6 md:px-12 flex justify-between items-center transition-all duration-500 bg-gradient-to-b from-neutral-950/80 to-transparent backdrop-blur-[2px]">
         <div
           className="cursor-pointer flex items-center gap-2 hover:opacity-80 transition-opacity"
           onClick={() => onNavClick("home")}
         >
+          {/* [FIXED] LOGO 尺寸大幅缩小至 h-4 md:h-5 (约为原来的30%) */}
           {profile.logoUrl ? (
             <img
               src={profile.logoUrl}
               alt="Logo"
-              className="h-8 md:h-10 w-auto object-contain"
+              className="h-4 md:h-5 w-auto object-contain"
             />
           ) : (
             <>
@@ -471,7 +483,7 @@ const GlobalNav = ({
           </div>
         </div>
 
-        <div className="md:hidden flex items-center gap-4 z-[61]">
+        <div className="md:hidden flex items-center gap-4">
           <button
             onClick={() =>
               setLang(lang === "en" ? "cn" : lang === "cn" ? "th" : "en")
@@ -481,7 +493,7 @@ const GlobalNav = ({
             {lang}
           </button>
           <button
-            className="text-white p-2"
+            className="text-white"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? <X /> : <Menu />}
@@ -490,7 +502,7 @@ const GlobalNav = ({
       </nav>
 
       {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center animate-fade-in-up">
+        <div className="fixed inset-0 z-40 bg-black/95 backdrop-blur-xl flex flex-col items-center justify-center animate-fade-in-up">
           <div className="flex flex-col gap-12 text-4xl font-thin text-white tracking-widest items-center font-serif">
             <button
               onClick={() => onNavClick("works")}
@@ -549,7 +561,7 @@ const HeroSlideshow = ({ slides, onIndexChange, onLinkClick }) => {
   };
 
   return (
-    <div className="absolute inset-0 w-full h-full bg-neutral-900 overflow-hidden z-0">
+    <div className="absolute inset-0 w-full h-full bg-neutral-900 overflow-hidden">
       {slides.map((slide, index) => {
         const isActive = index === currentIndex;
         return (
@@ -597,7 +609,7 @@ const AboutPage = ({ profile, lang, onClose }) => {
     ...(profile.content?.[lang] || {}),
   };
   return (
-    <div className="fixed inset-0 z-50 bg-neutral-950 overflow-y-auto animate-fade-in-up no-scrollbar">
+    <div className="fixed inset-0 z-30 bg-neutral-950 overflow-y-auto animate-fade-in-up no-scrollbar">
       <div className="min-h-screen flex flex-col md:flex-row">
         <div className="w-full md:w-1/2 h-[50vh] md:h-screen relative">
           <img
@@ -688,7 +700,7 @@ const AboutPage = ({ profile, lang, onClose }) => {
   );
 };
 
-// ImmersiveLightbox: 手机端优化版 (修复按钮失效和卡顿)
+// ImmersiveLightbox: 优化版 (解决手机卡顿 + 按钮防误触 + 区域避让)
 const ImmersiveLightbox = ({
   initialIndex,
   images,
@@ -762,19 +774,23 @@ const ImmersiveLightbox = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentIndex]);
 
+  // 点击背景关闭
   const handleBackgroundClick = (e) => {
     if (e.target === e.currentTarget) {
       onClose();
     }
   };
 
-  const stopProp = (e) => e.stopPropagation();
+  // 阻止按钮点击冒泡，防止触发滑动逻辑
+  const preventPropagation = (e) => e.stopPropagation();
 
   if (!currentImage) return null;
 
   const isHighRes = currentImage.width > 1920 && currentImage.height > 1080;
   const imgClassName = isHighRes ? "h-[75vh] w-auto" : "max-h-[75vh] w-auto";
   const placeholderSrc = currentImage.thumbnailUrl || currentImage.url;
+
+  // Resolve Multi-language Title
   const displayTitle =
     currentImage.projectTitles?.[lang] || currentImage.project;
 
@@ -787,17 +803,15 @@ const ImmersiveLightbox = ({
       onClick={handleBackgroundClick}
       style={{ touchAction: "none" }}
     >
-      {/* 强制置顶的关闭按钮 */}
       <button
-        onClick={(e) => {
-          stopProp(e);
-          onClose();
-        }}
+        onClick={onClose}
+        onPointerDown={preventPropagation}
         className="absolute top-6 right-6 z-[110] text-neutral-500 hover:text-white transition-colors p-4"
       >
         <X className="w-6 h-6" />
       </button>
 
+      {/* PC 端箭头 */}
       <div className="hidden md:flex absolute inset-y-0 left-4 z-20 items-center justify-center pointer-events-none">
         <ChevronLeft
           className="text-white/50 hover:text-white transition-colors"
@@ -805,6 +819,7 @@ const ImmersiveLightbox = ({
           strokeWidth={0.5}
         />
       </div>
+
       <div className="hidden md:flex absolute inset-y-0 right-4 z-20 items-center justify-center pointer-events-none">
         <ChevronRight
           className="text-white/50 hover:text-white transition-colors"
@@ -813,17 +828,18 @@ const ImmersiveLightbox = ({
         />
       </div>
 
+      {/* 隐形点击区域 - 避让顶部关闭按钮 (top-24) */}
       <div
-        className="absolute inset-y-0 left-0 w-1/2 z-10 cursor-pointer"
+        className="absolute top-24 bottom-0 left-0 w-1/2 z-10 cursor-pointer"
         onClick={(e) => {
-          stopProp(e);
+          e.stopPropagation();
           changeImage("prev");
         }}
       />
       <div
-        className="absolute inset-y-0 right-0 w-1/2 z-10 cursor-pointer"
+        className="absolute top-24 bottom-0 right-0 w-1/2 z-10 cursor-pointer"
         onClick={(e) => {
-          stopProp(e);
+          e.stopPropagation();
           changeImage("next");
         }}
       />
@@ -855,7 +871,7 @@ const ImmersiveLightbox = ({
           <div className="md:hidden flex items-center gap-4">
             <button
               onClick={(e) => {
-                stopProp(e);
+                e.stopPropagation();
                 changeImage("prev");
               }}
               className="text-white/50 hover:text-white p-2"
@@ -864,7 +880,7 @@ const ImmersiveLightbox = ({
             </button>
             <button
               onClick={(e) => {
-                stopProp(e);
+                e.stopPropagation();
                 changeImage("next");
               }}
               className="text-white/50 hover:text-white p-2"
@@ -1027,6 +1043,7 @@ const WorksPage = ({ photos, profile, ui, onImageClick, lang }) => {
             key={year}
             className="mb-16 md:mb-12 flex flex-col md:flex-row gap-4 md:gap-8"
           >
+            {/* CRITICAL FIX: 彻底移除了 sticky，年份自然滚动 */}
             <div className="md:w-48 flex-shrink-0 relative h-fit pointer-events-none z-10">
               <span className="text-4xl md:text-2xl font-serif font-thin text-white/30 md:text-white/50 tracking-widest block leading-none md:-ml-2 transition-all font-serif">
                 {year}
@@ -1082,12 +1099,14 @@ const PhotosManager = ({
     new Date().getFullYear().toString()
   );
 
+  // Multi-language Inputs
   const [uploadProjectEn, setUploadProjectEn] = useState("");
   const [uploadProjectCn, setUploadProjectCn] = useState("");
   const [uploadProjectTh, setUploadProjectTh] = useState("");
 
   const [localPhotos, setLocalPhotos] = useState(photos);
   const [dragged, setDragged] = useState(null);
+  // State for Edit Modal
   const [editingProjectData, setEditingProjectData] = useState(null);
 
   useEffect(() => {
@@ -1299,6 +1318,7 @@ const PhotosManager = ({
 
   return (
     <div className="space-y-12">
+      {/* Upload Area */}
       <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-xl sticky top-0 z-20 shadow-xl">
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-4">
           <div className="md:col-span-1">
@@ -1354,6 +1374,7 @@ const PhotosManager = ({
         </button>
       </div>
 
+      {/* Projects List */}
       <div className="space-y-8 pb-24">
         <div className="flex justify-end">
           <button
@@ -1451,6 +1472,7 @@ const PhotosManager = ({
           ))}
       </div>
 
+      {/* Project Edit Modal */}
       <ProjectEditModal
         isOpen={!!editingProjectData}
         onClose={() => setEditingProjectData(null)}
@@ -1558,6 +1580,7 @@ const HomeSettings = ({ settings, onUpdate }) => {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8 pb-12">
+      {/* Slogan Settings */}
       <div className="bg-neutral-900 p-6 rounded-xl border border-neutral-800 space-y-6">
         <div className="flex justify-between items-center border-b border-neutral-800 pb-4">
           <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -1566,6 +1589,7 @@ const HomeSettings = ({ settings, onUpdate }) => {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <span className="text-xs text-neutral-400">Show Slogan?</span>
+              {/* CSS Toggle */}
               <button
                 onClick={() => handleChange("showSlogan", !formData.showSlogan)}
                 className={`w-12 h-6 rounded-full p-1 transition-colors flex items-center ${
@@ -1646,6 +1670,7 @@ const HomeSettings = ({ settings, onUpdate }) => {
         </div>
       </div>
 
+      {/* Hero Slides Settings */}
       <div className="bg-neutral-900 p-6 rounded-xl border border-neutral-800 space-y-6">
         <h3 className="text-lg font-bold text-white flex items-center gap-2">
           <ImageIcon className="w-5 h-5" /> Hero Slides
@@ -2238,6 +2263,7 @@ const MainView = ({ photos, settings, onLoginClick, isOffline }) => {
     <div className="bg-neutral-950 text-neutral-200 font-sans selection:bg-white selection:text-black relative">
       <MetaUpdater profile={settings.profile} />
       <div className="noise-bg"></div>
+      {/* Z-Index Fix: GlobalNav (50) > MainView (10/20) > HeroSlideshow (0) > Noise (0) */}
       <button
         onClick={onLoginClick}
         className="fixed bottom-6 right-6 z-50 bg-neutral-900/50 hover:bg-white hover:text-black text-white/50 p-3 rounded-full transition-all duration-500 border border-white/10 hover:border-white shadow-lg backdrop-blur-md"
@@ -2255,7 +2281,14 @@ const MainView = ({ photos, settings, onLoginClick, isOffline }) => {
       />
       {view === "home" && !showAbout && (
         <div className="relative h-[100dvh] w-full overflow-hidden">
-          {/* Slogan & Title Overlay */}
+          {/* Z-Index Fix: HeroSlideshow is base layer */}
+          <HeroSlideshow
+            slides={slides}
+            onIndexChange={setCurrentSlideIndex}
+            onLinkClick={handleLinkNavigation}
+          />
+
+          {/* Z-Index Fix: Slogan Text is layer 10 (Clickable: pointer-events-none on container, auto on text if needed) */}
           {(profile.showSlogan || profile.showSlideTitle) && (
             <div className="absolute inset-0 pointer-events-none z-10">
               {slides.map((slide, index) => {
@@ -2293,11 +2326,6 @@ const MainView = ({ photos, settings, onLoginClick, isOffline }) => {
               })}
             </div>
           )}
-          <HeroSlideshow
-            slides={slides}
-            onIndexChange={setCurrentSlideIndex}
-            onLinkClick={handleLinkNavigation}
-          />
         </div>
       )}
       {view === "works" && !showAbout && (
@@ -2377,7 +2405,7 @@ const AppContent = () => {
         }
         return prev;
       });
-    }, 8000); // Extended timeout for mobile
+    }, 8000); // Extended timeout
 
     const initAuth = async () => {
       if (!auth) return;
@@ -2405,7 +2433,9 @@ const AppContent = () => {
   }, []);
 
   useEffect(() => {
-    if (!db) return; // Removed strict user check to allow public read even if auth fails
+    // Removed strict user check to allow loading public data even if auth is pending/failed
+    // assuming Firestore rules allow public read
+    if (!db) return;
 
     const unsubPhotos = onSnapshot(
       getPublicCollection("photos"),
@@ -2441,7 +2471,7 @@ const AppContent = () => {
       unsubPhotos();
       unsubSettings();
     };
-  }, [user]); // Still re-run on user change for admin rights
+  }, [user]); // Re-subscribe if user status changes (e.g. becomes admin)
 
   const handleLoginAttempt = (pass) => {
     if (pass === APP_CONFIG.adminPasscode) {
@@ -2474,12 +2504,7 @@ const AppContent = () => {
     }
   };
 
-  // 移除了全屏Loading阻断，改为仅在数据未加载且未超时时显示，或者让界面直接渲染（数据为空时显示空白或骨架屏），
-  // 这里为了解决“按钮点不动”问题，即使isLoading为true，也允许渲染 UI 框架，只是内容可能为空。
-  // 但为了视觉一致性，我们保留 Loading，但确保它不会永久卡死（timeout已处理）。
-  // 关键修复：如果 isOffline 为 true，或者 photos 已经有数据，就停止 loading。
-
-  if (isLoading && photos.length === 0 && !isOffline)
+  if (isLoading)
     return (
       <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center text-neutral-500">
         <Loader2 className="w-8 h-8 animate-spin mb-4 text-white" />
