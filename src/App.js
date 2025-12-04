@@ -1015,12 +1015,8 @@ const WorksPage = ({ photos, profile, ui, onImageClick, lang }) => {
   const getSortedProjects = (year) => {
     const projs = Object.keys(groupedByYearAndProject[year]);
     return projs.sort((a, b) => {
-      const minA = Math.min(
-        ...groupedByYearAndProject[year][a].map((p) => p.order || 0)
-      );
-      const minB = Math.min(
-        ...groupedByYearAndProject[year][b].map((p) => p.order || 0)
-      );
+      const minA = Math.min(...grouped[year][a].map((p) => p.order || 0));
+      const minB = Math.min(...grouped[year][b].map((p) => p.order || 0));
       return minA - minB;
     });
   };
@@ -2392,7 +2388,7 @@ const AppContent = () => {
         }
         return prev;
       });
-    }, 2500);
+    }, 8000); // Extended timeout for mobile
 
     const initAuth = async () => {
       if (!auth) return;
@@ -2419,13 +2415,19 @@ const AppContent = () => {
   }, []);
 
   useEffect(() => {
-    if (!user || !db) return;
+    if (!db) return; // Removed !user check to allow public read even if auth fails
 
     const unsubPhotos = onSnapshot(
       getPublicCollection("photos"),
       (snap) => {
         const data = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-        data.sort((a, b) => (a.order || 9999) - (b.order || 9999));
+
+        data.sort((a, b) => {
+          const orderA = typeof a.order === "number" ? a.order : 9999;
+          const orderB = typeof b.order === "number" ? b.order : 9999;
+          return orderA - orderB;
+        });
+
         setPhotos(data);
         setIsLoading(false);
       },
@@ -2447,7 +2449,7 @@ const AppContent = () => {
       unsubPhotos();
       unsubSettings();
     };
-  }, [user]);
+  }, [user]); // Still re-run on user change for admin rights
 
   const handleLoginAttempt = (pass) => {
     if (pass === APP_CONFIG.adminPasscode) {
