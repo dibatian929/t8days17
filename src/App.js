@@ -202,7 +202,8 @@ const injectStyles = () => {
     :root { --font-heading: 'Cinzel', serif; --font-body: 'Inter', sans-serif; }
     body { font-family: var(--font-body); background-color: #0a0a0a; margin: 0; padding: 0; overflow-x: hidden; }
     h1, h2, h3, .font-serif { font-family: var(--font-heading); }
-    .noise-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 9999; opacity: 0.04; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); }
+    /* 修复 Z-Index 问题：背景噪音放到底层 */
+    .noise-bg { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; opacity: 0.04; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); }
     .animate-fade-in-up { animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -788,7 +789,7 @@ const ImmersiveLightbox = ({
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
       onClick={handleBackgroundClick}
-      style={{ touchAction: "none" }} // 关键：禁用浏览器默认手势
+      style={{ touchAction: "none" }}
     >
       <button
         onClick={onClose}
@@ -1015,8 +1016,12 @@ const WorksPage = ({ photos, profile, ui, onImageClick, lang }) => {
   const getSortedProjects = (year) => {
     const projs = Object.keys(groupedByYearAndProject[year]);
     return projs.sort((a, b) => {
-      const minA = Math.min(...grouped[year][a].map((p) => p.order || 0));
-      const minB = Math.min(...grouped[year][b].map((p) => p.order || 0));
+      const minA = Math.min(
+        ...groupedByYearAndProject[year][a].map((p) => p.order || 0)
+      );
+      const minB = Math.min(
+        ...groupedByYearAndProject[year][b].map((p) => p.order || 0)
+      );
       return minA - minB;
     });
   };
@@ -2249,6 +2254,7 @@ const MainView = ({ photos, settings, onLoginClick, isOffline }) => {
     <div className="bg-neutral-950 text-neutral-200 font-sans selection:bg-white selection:text-black relative">
       <MetaUpdater profile={settings.profile} />
       <div className="noise-bg"></div>
+      {/* Z-Index Fix: GlobalNav (50) > MainView (10/20) > HeroSlideshow (0) > Noise (0) */}
       <button
         onClick={onLoginClick}
         className="fixed bottom-6 right-6 z-50 bg-neutral-900/50 hover:bg-white hover:text-black text-white/50 p-3 rounded-full transition-all duration-500 border border-white/10 hover:border-white shadow-lg backdrop-blur-md"
@@ -2266,7 +2272,14 @@ const MainView = ({ photos, settings, onLoginClick, isOffline }) => {
       />
       {view === "home" && !showAbout && (
         <div className="relative h-[100dvh] w-full overflow-hidden">
-          {/* Slogan & Title Overlay */}
+          {/* Z-Index Fix: HeroSlideshow is base layer */}
+          <HeroSlideshow
+            slides={slides}
+            onIndexChange={setCurrentSlideIndex}
+            onLinkClick={handleLinkNavigation}
+          />
+
+          {/* Z-Index Fix: Slogan Text is layer 10 (Clickable: pointer-events-none on container, auto on text if needed) */}
           {(profile.showSlogan || profile.showSlideTitle) && (
             <div className="absolute inset-0 pointer-events-none z-10">
               {slides.map((slide, index) => {
@@ -2304,11 +2317,6 @@ const MainView = ({ photos, settings, onLoginClick, isOffline }) => {
               })}
             </div>
           )}
-          <HeroSlideshow
-            slides={slides}
-            onIndexChange={setCurrentSlideIndex}
-            onLinkClick={handleLinkNavigation}
-          />
         </div>
       )}
       {view === "works" && !showAbout && (
@@ -2383,12 +2391,12 @@ const AppContent = () => {
         if (prev) {
           console.warn("Loading timed out, switching to offline mode");
           setIsOffline(true);
-          setPhotos([]);
+          // Even if timed out, keep existing data if any
           return false;
         }
         return prev;
       });
-    }, 8000); // Extended timeout for mobile
+    }, 8000); // Extended timeout
 
     const initAuth = async () => {
       if (!auth) return;
@@ -2403,6 +2411,7 @@ const AppContent = () => {
         }
       } catch (e) {
         console.error("Auth Failed", e);
+        // Don't block app if auth fails (e.g. domain restriction)
       }
     };
     initAuth();
@@ -2415,7 +2424,9 @@ const AppContent = () => {
   }, []);
 
   useEffect(() => {
-    if (!db) return; // Removed !user check to allow public read even if auth fails
+    // Removed strict user check to allow loading public data even if auth is pending/failed
+    // assuming Firestore rules allow public read
+    if (!db) return;
 
     const unsubPhotos = onSnapshot(
       getPublicCollection("photos"),
@@ -2433,6 +2444,8 @@ const AppContent = () => {
       },
       (err) => {
         console.error("Data Load Error", err);
+        // If permission denied (e.g. auth failed), we still stop loading
+        // The UI will show empty state or default config
         setIsOffline(true);
         setIsLoading(false);
       }
@@ -2449,7 +2462,7 @@ const AppContent = () => {
       unsubPhotos();
       unsubSettings();
     };
-  }, [user]); // Still re-run on user change for admin rights
+  }, [user]); // Re-subscribe if user status changes (e.g. becomes admin)
 
   const handleLoginAttempt = (pass) => {
     if (pass === APP_CONFIG.adminPasscode) {
